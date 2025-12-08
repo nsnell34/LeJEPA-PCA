@@ -210,3 +210,4 @@ __marimo__/
 ## image files exluded
 ds/
 ckpts/
+test/
