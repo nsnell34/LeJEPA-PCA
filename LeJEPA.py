@@ -14,19 +14,18 @@ class LeJEPAConfig:
     image_size: int = 224
     batch_size: int = 128
     num_workers: int = 8
-    epochs: int = 100
+    epochs: int = 20
     base_lr: float = 1e-3
     weight_decay: float = 1e-4
     ema_momentum: float = 0.996
-    latent_dim: int = 8  
-    projector_hidden_dim: int = 64
-    predictor_hidden_dim: int = 32
+    latent_dim: int = 64  
+    projector_hidden_dim: int = 256
+    predictor_hidden_dim: int = 128
     global_crop_scale: tuple = (0.4, 1.0)
     local_crop_scale: tuple = (0.05, 0.4)
-    num_local_crops: int = 0 
+    num_local_crops: int = 4 
     mask_ratio: float = 0.5
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
-
 
 class MultiCropTransform:
 
@@ -74,27 +73,75 @@ def block_mask(x, mask_ratio=0.5, min_num_blocks=1, max_num_blocks=4):
 
     return x * mask
 
-def get_resnet_backbone(use_ir: bool):
-    backbone = models.resnet18(weights=None)
+class ResNetBackbone(nn.Module):
+    """
+    Wraps a torchvision ResNet to expose intermediate feature maps:
+    layer1 (56×56), layer2 (28×28), layer3 (14×14), layer4 (7×7)
+    """
+    def __init__(self, use_ir: bool, resnet_type="resnet18"):
+        super().__init__()
 
-    if use_ir:
-        channels = 1
-    else:
-        channels = 3
-        
-    old_conv = backbone.conv1
-    backbone.conv1 = nn.Conv2d(
-        in_channels=channels,
-        out_channels=old_conv.out_channels,
-        kernel_size=old_conv.kernel_size,
-        stride=old_conv.stride,
-        padding=old_conv.padding,
-        bias=old_conv.bias is not None,
-    )
+        if resnet_type == "resnet18":
+            backbone = models.resnet18(weights=None)
+            self.out_dim = 512
+        elif resnet_type == "resnet50":
+            backbone = models.resnet50(weights=None)
+            self.out_dim = 2048
+        else:
+            raise ValueError("Unsupported ResNet type")
 
-    backbone.fc = nn.Identity()
-    return backbone
+        # Modify conv1 for IR support
+        in_channels = 1 if use_ir else 3
+        old_conv = backbone.conv1
+        backbone.conv1 = nn.Conv2d(
+            in_channels=in_channels,
+            out_channels=old_conv.out_channels,
+            kernel_size=old_conv.kernel_size,
+            stride=old_conv.stride,
+            padding=old_conv.padding,
+            bias=old_conv.bias is not None,
+        )
 
+        # Save layers
+        self.conv1 = backbone.conv1
+        self.bn1 = backbone.bn1
+        self.relu = backbone.relu
+        self.maxpool = backbone.maxpool
+
+        self.layer1 = backbone.layer1  # 56×56
+        self.layer2 = backbone.layer2  # 28×28
+        self.layer3 = backbone.layer3  # 14×14
+        self.layer4 = backbone.layer4  # 7×7
+
+        # Remove classification head
+        self.avgpool = backbone.avgpool
+        self.fc = nn.Identity()
+
+    def forward(self, x, return_layer="layer4"):
+        """
+        Returns the feature map of a chosen ResNet layer.
+        Valid return_layer values: "layer1", "layer2", "layer3", "layer4"
+        """
+        x = self.conv1(x)   # 112×112
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.maxpool(x) # 56×56
+
+        x = self.layer1(x)
+        if return_layer == "layer1":
+            return x
+
+        x = self.layer2(x)
+        if return_layer == "layer2":
+            return x
+
+        x = self.layer3(x)
+        if return_layer == "layer3":
+            return x
+
+        x = self.layer4(x)
+        return x
+    
 class SwiGLUBlock(nn.Module):
     def __init__(self, in_dim, hidden_dim, out_dim):
         super().__init__()
@@ -112,9 +159,7 @@ class ProjectorMLP(nn.Module):
     def __init__(self, in_dim, hidden_dim, out_dim):
         super().__init__()
         self.core = SwiGLUBlock(in_dim, hidden_dim, out_dim)
-        
-        ## consider if training is unstable 
-        #self.bn = nn.BatchNorm1d(out_dim)
+        self.norm = nn.LayerNorm(out_dim)
 
     def forward(self, x):
         x = self.core(x)
@@ -135,10 +180,10 @@ class LeJEPA(nn.Module):
         super().__init__()
         self.cfg = cfg
 
-        self.context_encoder = get_resnet_backbone(use_ir=use_ir)
-        self.target_encoder = get_resnet_backbone(use_ir=use_ir)
-        
-        feat_dim = 512
+        self.context_encoder = ResNetBackbone(use_ir=use_ir)
+        self.target_encoder = ResNetBackbone(use_ir=use_ir)
+
+        feat_dim = self.context_encoder.out_dim
 
         self.context_projector = ProjectorMLP(
             in_dim=feat_dim,
@@ -184,11 +229,13 @@ class LeJEPA(nn.Module):
 
     def forward_jepa(self, global_ctx, global_tgt):
         ctx_feat = self.context_encoder(global_ctx)     
+        ctx_feat = ctx_feat.mean(dim=(2, 3)) 
         z_c = self.context_projector(ctx_feat)        
         z_pred = self.predictor(z_c)                  
 
         with torch.no_grad():
             tgt_feat = self.target_encoder(global_tgt)
+            tgt_feat = tgt_feat.mean(dim=(2, 3)) 
             z_t = self.target_projector(tgt_feat)
 
         z_pred = F.normalize(z_pred, dim=-1)
@@ -197,7 +244,7 @@ class LeJEPA(nn.Module):
         loss = F.mse_loss(z_pred, z_t)
         return loss
 
-def cosine_lr(step, max_steps, base_lr, final_lr_ratio=0.01):
+def cosine_lr(step, max_steps, base_lr, final_lr_ratio=0.0001):
     if step >= max_steps:
         return base_lr * final_lr_ratio
     q = 0.5 * (1 + math.cos(math.pi * step / max_steps))
@@ -211,7 +258,7 @@ def build_dataloader(cfg: LeJEPAConfig, data_root: str, use_ir: bool):
         batch_size=cfg.batch_size,
         shuffle=True,
         num_workers=cfg.num_workers,
-        pin_memory=True,
+        pin_memory=False,
         drop_last=True,
     )
     return loader
