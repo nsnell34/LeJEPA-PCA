@@ -51,7 +51,6 @@ def block_mask(x, mask_ratio=0.5, min_num_blocks=1, max_num_blocks=4):
 
     B, C, H, W = x.shape
     device = x.device
-
     mask = torch.ones((B, 1, H, W), device=device)
 
     for b in range(B):
@@ -74,10 +73,7 @@ def block_mask(x, mask_ratio=0.5, min_num_blocks=1, max_num_blocks=4):
     return x * mask
 
 class ResNetBackbone(nn.Module):
-    """
-    Wraps a torchvision ResNet to expose intermediate feature maps:
-    layer1 (56×56), layer2 (28×28), layer3 (14×14), layer4 (7×7)
-    """
+
     def __init__(self, use_ir: bool, resnet_type="resnet18"):
         super().__init__()
 
@@ -89,8 +85,7 @@ class ResNetBackbone(nn.Module):
             self.out_dim = 2048
         else:
             raise ValueError("Unsupported ResNet type")
-
-        # Modify conv1 for IR support
+        
         in_channels = 1 if use_ir else 3
         old_conv = backbone.conv1
         backbone.conv1 = nn.Conv2d(
@@ -102,7 +97,6 @@ class ResNetBackbone(nn.Module):
             bias=old_conv.bias is not None,
         )
 
-        # Save layers
         self.conv1 = backbone.conv1
         self.bn1 = backbone.bn1
         self.relu = backbone.relu
@@ -113,19 +107,15 @@ class ResNetBackbone(nn.Module):
         self.layer3 = backbone.layer3  # 14×14
         self.layer4 = backbone.layer4  # 7×7
 
-        # Remove classification head
         self.avgpool = backbone.avgpool
         self.fc = nn.Identity()
 
     def forward(self, x, return_layer="layer4"):
-        """
-        Returns the feature map of a chosen ResNet layer.
-        Valid return_layer values: "layer1", "layer2", "layer3", "layer4"
-        """
-        x = self.conv1(x)   # 112×112
+    
+        x = self.conv1(x) 
         x = self.bn1(x)
         x = self.relu(x)
-        x = self.maxpool(x) # 56×56
+        x = self.maxpool(x)
 
         x = self.layer1(x)
         if return_layer == "layer1":

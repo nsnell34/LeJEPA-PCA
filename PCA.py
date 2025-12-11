@@ -3,13 +3,12 @@ import torch
 import numpy as np
 from PIL import Image
 
-def extract_feature_map(model, x, layer="layer4"):
+def extract_feature_map(model, x, layer="layer3"):
     fmap = model.context_encoder(x, return_layer=layer)
     B, C, H, W = fmap.shape
 
     tokens = fmap.reshape(B, C, H * W).permute(0, 2, 1)  # (B, N, C)
     return tokens, (H, W)
-
 
 def colorize_image_resnet(model, img_tensor, pca=None, layer="layer3", device="cuda"):
     img_tensor = img_tensor.to(device)

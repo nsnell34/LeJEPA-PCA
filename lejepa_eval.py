@@ -8,10 +8,6 @@ from LeJEPA import LeJEPA, LeJEPAConfig, MultiCropTransform, block_mask
 import argparse
 from PCA import colorize_image_resnet
 
-
-# ----------------------------
-#  Load Model
-# ----------------------------
 def load_model(ckpt_path: str, device: str = None, use_ir: bool = False):
     cfg = LeJEPAConfig(image_size=224, batch_size=128)
 
@@ -25,10 +21,6 @@ def load_model(ckpt_path: str, device: str = None, use_ir: bool = False):
 
     return model, cfg, device
 
-
-# ----------------------------
-#  Eval Transform
-# ----------------------------
 def build_eval_transform(cfg: LeJEPAConfig, use_ir: bool):
 
     if use_ir:
@@ -48,10 +40,6 @@ def build_eval_transform(cfg: LeJEPAConfig, use_ir: bool):
         normalize,
     ])
 
-
-# ----------------------------
-#  Extract Embedding (fixed)
-# ----------------------------
 def extract_embedding(model: LeJEPA, cfg, device, image_path, use_ir):
     transform = build_eval_transform(cfg, use_ir)
 
@@ -60,16 +48,12 @@ def extract_embedding(model: LeJEPA, cfg, device, image_path, use_ir):
 
     with torch.no_grad():
         feat = model.context_encoder(x)
-        feat = feat.mean(dim=(2, 3))  # <<< FIXED
+        feat = feat.mean(dim=(2, 3)) 
         z = model.context_projector(feat)
         z = F.normalize(z, dim=-1)
 
     return z.cpu()
 
-
-# ----------------------------
-#  JEPA Loss (fixed)
-# ----------------------------
 def jepa_single_image_loss(model: LeJEPA, cfg, device, img_path, use_ir):
 
     transform = MultiCropTransform(cfg, use_ir=use_ir)
@@ -84,22 +68,18 @@ def jepa_single_image_loss(model: LeJEPA, cfg, device, img_path, use_ir):
 
     with torch.no_grad():
 
-        # ---- context ----
         ctx_feat = model.context_encoder(masked_ctx)
-        ctx_feat = ctx_feat.mean(dim=(2, 3))     # <<< FIXED
+        ctx_feat = ctx_feat.mean(dim=(2, 3))
         z_c = model.context_projector(ctx_feat)
         z_pred = model.predictor(z_c)
 
-        # ---- target ----
         tgt_feat = model.target_encoder(global2)
-        tgt_feat = tgt_feat.mean(dim=(2, 3))     # <<< FIXED
+        tgt_feat = tgt_feat.mean(dim=(2, 3)) 
         z_t = model.target_projector(tgt_feat)
 
-        # ---- normalize ----
         z_pred = F.normalize(z_pred, dim=-1)
         z_t = F.normalize(z_t, dim=-1)
 
-        # ---- mse ----
         loss = F.mse_loss(z_pred, z_t)
 
         sqdist = loss.item() * cfg.latent_dim
@@ -107,10 +87,6 @@ def jepa_single_image_loss(model: LeJEPA, cfg, device, img_path, use_ir):
 
     return loss.item(), sqdist, cosθ
 
-
-# ----------------------------
-#  Evaluate Dataset
-# ----------------------------
 def evaluate_dataset(model, cfg, device, root, use_ir, viz_out=None):
 
     exts = (".jpg", ".JPG", ".jpeg", ".JPEG", ".png", ".PNG", ".bmp", ".BMP", ".tif", ".tiff")
@@ -136,7 +112,6 @@ def evaluate_dataset(model, cfg, device, root, use_ir, viz_out=None):
         total_sq += sqdist
         total_cos += cosθ
 
-        # PCA Visualization
         if viz_out:
             filename = os.path.basename(p).replace(".", "_")
             out_path = os.path.join(viz_out, filename + "_pca.png")
@@ -151,10 +126,6 @@ def evaluate_dataset(model, cfg, device, root, use_ir, viz_out=None):
     N = len(img_paths)
     return total_loss / N, total_sq / N, total_cos / N
 
-
-# ----------------------------
-#  PCA Visualization Wrapper
-# ----------------------------
 def visualize_single_image(model, cfg, device, img_path, use_ir, save_path=None, pca=None):
 
     transform = build_eval_transform(cfg, use_ir)
@@ -174,10 +145,6 @@ def visualize_single_image(model, cfg, device, img_path, use_ir, save_path=None,
 
     return vis_img, pca
 
-
-# ----------------------------
-#  Main
-# ----------------------------
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--use_ir", action="store_true")
