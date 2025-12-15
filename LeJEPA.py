@@ -26,6 +26,10 @@ class LeJEPAConfig:
     num_local_crops: int = 4 
     mask_ratio: float = 0.5
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
+    
+    ## lower out dims for features 
+    ### compute pca on full set prior and pass in the value to the pca fit function for each image 
+    ##  pca.transform
 
 class MultiCropTransform:
 

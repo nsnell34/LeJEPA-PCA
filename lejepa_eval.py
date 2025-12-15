@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torchvision import transforms
 from LeJEPA import LeJEPA, LeJEPAConfig, MultiCropTransform, block_mask
 import argparse
-from PCA import colorize_image_resnet
+from PCA import colorize_image_resnet, compute_global_pca
 
 def load_model(ckpt_path: str, device: str = None, use_ir: bool = False):
     cfg = LeJEPAConfig(image_size=224, batch_size=128)
@@ -23,6 +23,9 @@ def load_model(ckpt_path: str, device: str = None, use_ir: bool = False):
 
 def build_eval_transform(cfg: LeJEPAConfig, use_ir: bool):
 
+    ### need to save the mean / std from LeJEPA.py before we run eval 
+    ## so we can normalize properly
+    
     if use_ir:
         normalize = transforms.Normalize(mean=[0.4226], std=[0.1795])
         channels = 1
@@ -89,20 +92,28 @@ def jepa_single_image_loss(model: LeJEPA, cfg, device, img_path, use_ir):
 
 def evaluate_dataset(model, cfg, device, root, use_ir, viz_out=None):
 
-    exts = (".jpg", ".JPG", ".jpeg", ".JPEG", ".png", ".PNG", ".bmp", ".BMP", ".tif", ".tiff")
+    print("CALLING evaluate_dataset()")
+    exts = (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff")
 
-    img_paths = [
-        os.path.join(dp, f)
-        for dp, _, fs in os.walk(root)
-        for f in fs
-        if f.endswith(exts)
-    ]
+    img_paths = []
+    for dp, dirs, fs in os.walk(root):
+        dirs.sort()
+        fs.sort()
+        for f in fs:
+            if f.lower().endswith(exts):
+                img_paths.append(os.path.join(dp, f))
 
     if not img_paths:
         raise ValueError(f"No images found in {root}")
 
+    if use_ir:
+        paths = ["/home/megrad/Documents/Github/lejepa/combined_resnet_patches_0_ir.npy"]
+    else:
+        paths = ["/home/megrad/Documents/Github/lejepa/combined_resnet_patches_0_rgb.npy"]
+
+    pca_global = compute_global_pca(paths)
+
     total_loss = total_sq = total_cos = 0.0
-    pca_global = None
 
     print(f"\nEvaluating {len(img_paths)} images in {root} ...")
 
@@ -113,10 +124,10 @@ def evaluate_dataset(model, cfg, device, root, use_ir, viz_out=None):
         total_cos += cosθ
 
         if viz_out:
-            filename = os.path.basename(p).replace(".", "_")
-            out_path = os.path.join(viz_out, filename + "_pca.png")
+            filename = os.path.basename(p)
+            out_path = os.path.join(viz_out, filename)
 
-            vis_img, pca_global = visualize_single_image(
+            visualize_single_image(
                 model, cfg, device, p,
                 use_ir=use_ir,
                 save_path=out_path,
@@ -126,24 +137,28 @@ def evaluate_dataset(model, cfg, device, root, use_ir, viz_out=None):
     N = len(img_paths)
     return total_loss / N, total_sq / N, total_cos / N
 
+
 def visualize_single_image(model, cfg, device, img_path, use_ir, save_path=None, pca=None):
 
     transform = build_eval_transform(cfg, use_ir)
     img = Image.open(img_path).convert("L" if use_ir else "RGB")
     x = transform(img).unsqueeze(0).to(device)
 
-    vis_img, pca = colorize_image_resnet(
-        model=model,
-        img_tensor=x,
-        pca=pca,
-        device=device
-    )
+    with torch.no_grad():
+        vis_img = colorize_image_resnet(
+            model=model,
+            img_tensor=x,
+            pca=pca,
+            device=device
+        )
 
     if save_path:
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         vis_img.save(save_path)
 
-    return vis_img, pca
+    return vis_img
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
