@@ -20,13 +20,14 @@ class AddGaussianNoise(object):
 class Transforms:
     def __init__(self, use_ir: bool, cfg, dataset_path: str = None, image_size: int = 224):
         self.use_ir = use_ir
-        mean, std = self.compute_ds_stats(dataset_path, image_size=image_size)
+        self.mean, self.std = self.compute_ds_stats(dataset_path, image_size=image_size)
               
         class Stats: 
             pass
         self.stats = Stats()
-        self.stats.mean = mean.tolist()
-        self.stats.std = std.tolist()
+        self.stats.mean = self.mean.tolist()
+        self.stats.std = self.std.tolist()
+        #print("STATS: ", self.stats)
         
         if use_ir:
             self.global_transform, self.local_transform  = self.ir_transform(self.stats, cfg)
@@ -35,7 +36,7 @@ class Transforms:
     
     def ir_transform(self, stats, cfg):
         normalize = transforms.Normalize(
-                stats.mean, # 1 channel
+                stats.mean,
                 stats.std
             )
         
