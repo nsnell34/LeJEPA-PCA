@@ -46,32 +46,3 @@ def compute_global_pca(npy_paths, n_components=3):
     pca = PCA(n_components=n_components)
     pca.fit(feats)
     return pca
-
-def dataset_patch_embeddings(model, dataset, number, layer="layer3", device="cuda"):
-    
-    all_patches = []
-    
-    loader = torch.utils.data.DataLoader(
-        dataset,
-        batch_size=128,
-        num_workers=8,
-        pin_memory=True,
-        shuffle=False,
-    )
-    
-    with torch.no_grad():
-        for imgs in loader: 
-            imgs = imgs.to(device, non_blocking=True)
-            
-            tokens = extract_feature_map(model, imgs, layer=layer)
-            
-            B, N, C = tokens.shape
-            patches = tokens.reshape(B * N, C) 
-
-            all_patches.append(patches.cpu().numpy())
-            
-    combined_patches = np.concatenate(all_patches, axis=0)
-    filename = "combined_patches_"+str(number)+"_.npy"
-    np.save(filename, combined_patches)
-    
-    return combined_patches
