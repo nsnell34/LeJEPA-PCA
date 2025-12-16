@@ -25,6 +25,7 @@ def build_eval_transform(cfg: LeJEPAConfig, use_ir: bool):
 
     ### need to save the mean / std from LeJEPA.py before we run eval 
     ## so we can normalize properly
+    ### consider and automated pipeline to train/eval IR & RGB
     
     if use_ir:
         normalize = transforms.Normalize(mean=[0.4226], std=[0.1795])
@@ -92,7 +93,6 @@ def jepa_single_image_loss(model: LeJEPA, cfg, device, img_path, use_ir):
 
 def evaluate_dataset(model, cfg, device, root, use_ir, viz_out=None):
 
-    print("CALLING evaluate_dataset()")
     exts = (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff")
 
     img_paths = []
@@ -106,13 +106,13 @@ def evaluate_dataset(model, cfg, device, root, use_ir, viz_out=None):
     if not img_paths:
         raise ValueError(f"No images found in {root}")
 
+    ### these might actually be the same thing. 2 could be unecessary.
     if use_ir:
         paths = ["/home/megrad/Documents/Github/lejepa/combined_resnet_patches_0_ir.npy"]
     else:
         paths = ["/home/megrad/Documents/Github/lejepa/combined_resnet_patches_0_rgb.npy"]
 
     pca_global = compute_global_pca(paths)
-
     total_loss = total_sq = total_cos = 0.0
 
     print(f"\nEvaluating {len(img_paths)} images in {root} ...")
@@ -137,7 +137,6 @@ def evaluate_dataset(model, cfg, device, root, use_ir, viz_out=None):
     N = len(img_paths)
     return total_loss / N, total_sq / N, total_cos / N
 
-
 def visualize_single_image(model, cfg, device, img_path, use_ir, save_path=None, pca=None):
 
     transform = build_eval_transform(cfg, use_ir)
@@ -157,8 +156,6 @@ def visualize_single_image(model, cfg, device, img_path, use_ir, save_path=None,
         vis_img.save(save_path)
 
     return vis_img
-
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

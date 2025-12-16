@@ -10,6 +10,13 @@ from LeJEPA import LeJEPA, LeJEPAConfig
 
 
 def dataset_patch_embeddings(model, dataset, number, layer="layer3", device="cuda"):
+    """
+    Extracts patch-level feature embeddings from a dataset using a specified
+    ResNet layer and saves them as a single NumPy array.
+
+    Features are extracted per spatial location, flattened across the dataset,
+    and written to disk for offline analysis (e.g. global PCA fitting).
+    """
     all_patches = []
     loader = DataLoader(
         dataset,
