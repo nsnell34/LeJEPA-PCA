@@ -31,8 +31,13 @@ def colorize_image_patchwise_jepa(model, pca, img_tensor, device="cuda", normali
     mapped = (mapped * 255).astype(np.uint8)
 
     mapped_grid = mapped.reshape(Hf, Wf, 3)
+    
+    out = Image.fromarray(mapped_grid, mode="RGB")
+    
+    # smoothing
+    # out = out.resize((img_tensor.shape[-1], img_tensor.shape[-2]), Image.BILINEAR)
 
-    return Image.fromarray(mapped_grid, mode="RGB")
+    return out
 
 if __name__ == "__main__":
     import argparse
