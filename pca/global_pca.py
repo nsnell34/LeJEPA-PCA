@@ -1,4 +1,5 @@
 import numpy as np
+import joblib
 from sklearn.decomposition import PCA
 
 def compute_global_pca(npy_paths, n_components=3):
@@ -9,7 +10,6 @@ def compute_global_pca(npy_paths, n_components=3):
     pca.fit(feats)
     return pca
 
-
 if __name__ == "__main__":
     import argparse
 
@@ -19,8 +19,9 @@ if __name__ == "__main__":
     parser.add_argument("--components", type=int, default=3)
     args = parser.parse_args()
 
-    compute_global_pca(
+    pca = compute_global_pca(
         args.inputs,
-        n_components=args.components,
-        out_path=args.out
+        n_components=args.components
     )
+
+    joblib.dump(pca, args.out)

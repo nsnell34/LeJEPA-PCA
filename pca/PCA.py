@@ -2,8 +2,11 @@ from sklearn.decomposition import PCA
 import torch
 import numpy as np
 from PIL import Image
+import joblib
 import torchvision.transforms as T
 import torch.nn.functional as F
+from LeJEPA import LeJEPA, LeJEPAConfig
+from eval.lejepa_eval import build_eval_transform
 
 @torch.no_grad()
 def colorize_image_patchwise_jepa(model, pca, img_tensor, device="cuda", normalize=True):
@@ -30,3 +33,39 @@ def colorize_image_patchwise_jepa(model, pca, img_tensor, device="cuda", normali
     mapped_grid = mapped.reshape(Hf, Wf, 3)
 
     return Image.fromarray(mapped_grid, mode="RGB")
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ckpt", required=True)
+    parser.add_argument("--pca", required=True)
+    parser.add_argument("--img", required=True)
+    parser.add_argument("--out", required=True)
+    parser.add_argument("--use_ir", action="store_true")
+    args = parser.parse_args()
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    cfg = LeJEPAConfig(image_size=224, batch_size=128)
+    model = LeJEPA(cfg, use_ir=args.use_ir).to(device)
+
+    ckpt = torch.load(args.ckpt, map_location=device)
+    model.load_state_dict(ckpt["model_state"])
+    model.eval()
+
+    pca = joblib.load(args.pca)
+
+    transform = build_eval_transform(cfg, use_ir=args.use_ir)
+
+    img = Image.open(args.img).convert("L" if args.use_ir else "RGB")
+    img_tensor = transform(img).unsqueeze(0)
+
+    vis = colorize_image_patchwise_jepa(
+        model=model,
+        pca=pca,
+        img_tensor=img_tensor,
+        device=device
+    )
+
+    vis.save(args.out)

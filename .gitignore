@@ -212,6 +212,5 @@ ds/
 ckpts/
 test/
 
-## large patch files
-combined_resnet_patches_0_ir.npy
-combined_resnet_patches_0_rgb.npy
+/tokens
+/joblibs
