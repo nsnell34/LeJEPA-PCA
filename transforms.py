@@ -4,7 +4,6 @@ from torch.utils.data import DataLoader
 import torch
 import random
 
-
 class AddGaussianNoise(object):
     def __init__(self, mean=0.0, std=0.01, p=0.5):
         self.mean = mean

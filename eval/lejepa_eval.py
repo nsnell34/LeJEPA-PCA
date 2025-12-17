@@ -6,7 +6,6 @@ import torch.nn.functional as F
 from torchvision import transforms
 from LeJEPA import LeJEPA, LeJEPAConfig, MultiCropTransform, block_mask
 import argparse
-from PCA import colorize_image_resnet, compute_global_pca
 
 def load_model(ckpt_path: str, device: str = None, use_ir: bool = False):
     cfg = LeJEPAConfig(image_size=224, batch_size=128)
@@ -44,20 +43,6 @@ def build_eval_transform(cfg: LeJEPAConfig, use_ir: bool):
         normalize,
     ])
 
-def extract_embedding(model: LeJEPA, cfg, device, image_path, use_ir):
-    transform = build_eval_transform(cfg, use_ir)
-
-    img = Image.open(image_path).convert("L" if use_ir else "RGB")
-    x = transform(img).unsqueeze(0).to(device)
-
-    with torch.no_grad():
-        feat = model.context_encoder(x)
-        feat = feat.mean(dim=(2, 3)) 
-        z = model.context_projector(feat)
-        z = F.normalize(z, dim=-1)
-
-    return z.cpu()
-
 def jepa_single_image_loss(model: LeJEPA, cfg, device, img_path, use_ir):
 
     transform = MultiCropTransform(cfg, use_ir=use_ir)
@@ -91,13 +76,11 @@ def jepa_single_image_loss(model: LeJEPA, cfg, device, img_path, use_ir):
 
     return loss.item(), sqdist, cosθ
 
-def evaluate_dataset(model, cfg, device, root, use_ir, viz_out=None):
-
+def evaluate_dataset(model, cfg, device, root, use_ir):
     exts = (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff")
 
     img_paths = []
-    for dp, dirs, fs in os.walk(root):
-        dirs.sort()
+    for dp, _, fs in os.walk(root):
         fs.sort()
         for f in fs:
             if f.lower().endswith(exts):
@@ -106,62 +89,25 @@ def evaluate_dataset(model, cfg, device, root, use_ir, viz_out=None):
     if not img_paths:
         raise ValueError(f"No images found in {root}")
 
-    ### these might actually be the same thing. 2 could be unecessary.
-    if use_ir:
-        paths = ["/home/megrad/Documents/Github/lejepa/combined_resnet_patches_0_ir.npy"]
-    else:
-        paths = ["/home/megrad/Documents/Github/lejepa/combined_resnet_patches_0_rgb.npy"]
-
-    pca_global = compute_global_pca(paths)
     total_loss = total_sq = total_cos = 0.0
 
-    print(f"\nEvaluating {len(img_paths)} images in {root} ...")
+    print(f"\nEvaluating {len(img_paths)} images in {root}...")
 
     for p in img_paths:
-        loss, sqdist, cosθ = jepa_single_image_loss(model, cfg, device, p, use_ir)
+        loss, sqdist, cos_sim = jepa_single_image_loss(
+            model, cfg, device, p, use_ir
+        )
         total_loss += loss
         total_sq += sqdist
-        total_cos += cosθ
-
-        if viz_out:
-            filename = os.path.basename(p)
-            out_path = os.path.join(viz_out, filename)
-
-            visualize_single_image(
-                model, cfg, device, p,
-                use_ir=use_ir,
-                save_path=out_path,
-                pca=pca_global
-            )
+        total_cos += cos_sim
 
     N = len(img_paths)
     return total_loss / N, total_sq / N, total_cos / N
-
-def visualize_single_image(model, cfg, device, img_path, use_ir, save_path=None, pca=None):
-
-    transform = build_eval_transform(cfg, use_ir)
-    img = Image.open(img_path).convert("L" if use_ir else "RGB")
-    x = transform(img).unsqueeze(0).to(device)
-
-    with torch.no_grad():
-        vis_img = colorize_image_resnet(
-            model=model,
-            img_tensor=x,
-            pca=pca,
-            device=device
-        )
-
-    if save_path:
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        vis_img.save(save_path)
-
-    return vis_img
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--use_ir", action="store_true")
     parser.add_argument("--val_root", type=str)
-    parser.add_argument("--viz_out", action="store_true")
     args = parser.parse_args()
 
     if args.use_ir:
@@ -177,7 +123,6 @@ if __name__ == "__main__":
         avg_loss, avg_sqdist, avg_cos = evaluate_dataset(
             model, cfg, device, args.val_root,
             use_ir=args.use_ir,
-            viz_out=save_path if args.viz_out else None
         )
 
         print("\n==== Validation Metrics ====")

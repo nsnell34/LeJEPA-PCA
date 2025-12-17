@@ -229,6 +229,7 @@ class LeJEPA(nn.Module):
         super().__init__()
         self.cfg = cfg
 
+        ### use one backbone for both 
         self.context_encoder = ResNetBackbone(use_ir=use_ir)
         self.target_encoder = ResNetBackbone(use_ir=use_ir)
 
@@ -275,6 +276,13 @@ class LeJEPA(nn.Module):
         for p, q in zip(self.context_projector.parameters(),
                         self.target_projector.parameters()):
             q.data.mul_(m).add_(p.data, alpha=(1.0 - m))
+            
+    @torch.no_grad()
+    def forward_embed(self, x):
+        feat = self.context_encoder(x)
+        feat = feat.mean(dim=(2,3))
+        z = self.context_projector(feat)
+        return F.normalize(z, dim=-1)
 
     def forward_jepa(self, global_ctx, global_tgt):
         ## normalize scalar to have result shape (B, C) instead of (B, C, H, W)  
@@ -388,7 +396,7 @@ def train_lejepa(data_root: str, cfg: LeJEPAConfig, use_ir: bool):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--use_ir", action="store_true", help="Use IR mode (1-channel instead of 3).")
-    parser.add_argument("--data_root", default="/home/megrad/Documents/Github/lejepa/ds/train/rgb_images")
+    parser.add_argument("--data_root", default="/home/megrad/Documents/Github/lejepa/ds/train/ir_images")
     args = parser.parse_args()
     
     cfg = LeJEPAConfig()

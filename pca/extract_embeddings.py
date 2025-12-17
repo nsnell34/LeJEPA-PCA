@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 import argparse
 
-from PCA import extract_feature_map
+from pca.PCA import extract_feature_map
 from LeJEPA import LeJEPA, LeJEPAConfig
 
 
