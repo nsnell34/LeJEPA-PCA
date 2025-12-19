@@ -25,23 +25,23 @@ def build_eval_transform(cfg: LeJEPAConfig, use_ir: bool):
     ### need to save the mean / std from LeJEPA.py before we run eval 
     ## so we can normalize properly
     ### consider and automated pipeline to train/eval IR & RGB
-    
-    if use_ir:
-        normalize = transforms.Normalize(mean=[0.4226], std=[0.1795])
-        channels = 1
-    else:
-        normalize = transforms.Normalize(
-            mean=[0.4807, 0.4986, 0.4881],
-            std=[0.2233, 0.2059, 0.1738]
-        )
-        channels = 3
 
-    return transforms.Compose([
-        transforms.Resize((cfg.image_size, cfg.image_size)),
-        transforms.Grayscale(num_output_channels=channels),
-        transforms.ToTensor(),
-        normalize,
-    ])
+    if use_ir:
+        return transforms.Compose([
+            transforms.Resize((cfg.image_size, cfg.image_size)),
+            transforms.Grayscale(num_output_channels=1),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.4226], std=[0.1795]),
+        ])
+    else:
+        return transforms.Compose([
+            transforms.Resize((cfg.image_size, cfg.image_size)),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.4807, 0.4986, 0.4881],
+                std=[0.2233, 0.2059, 0.1738],
+            ),
+        ])
 
 def jepa_single_image_loss(model: LeJEPA, cfg, device, img_path, use_ir):
 

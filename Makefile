@@ -6,11 +6,14 @@ RGB_CKPT=ckpts/lejepa_rgb.pth
 RGB_DATA_ROOT=ds/val/rgb_images
 IR_DATA_ROOT=ds/val/ir_images
 
+RGB_TEST_DATA_ROOT=ds/test_images/rgb
+IR_TEST_DATA_ROOT=ds/test_images/ir
+
 RGB_TOKENS=tokens/tokens_rgb.npy
 IR_TOKENS=tokens/tokens_ir.npy
 
-RGB_PCA=pca/jepa_pca_rgb.joblib
-IR_PCA=pca/jepa_pca_ir.joblib
+RGB_PCA=joblibs/jepa_pca_rgb.joblib
+IR_PCA=joblibs/jepa_pca_ir.joblib
 
 RGB_VIZ_OUT=viz/rgb
 IR_VIZ_OUT=viz/ir
@@ -23,7 +26,6 @@ rgb_eval:
 
 ir_eval:
 	$(PYTHON) -m eval.lejepa_eval --val_root $(IR_DATA_ROOT) --use_ir
-
 
 # -------- TOKENS --------
 
@@ -40,7 +42,6 @@ $(IR_TOKENS):
 		--out $(IR_TOKENS) \
 		--use_ir
 
-
 # -------- PCA --------
 
 $(RGB_PCA): $(RGB_TOKENS)
@@ -53,14 +54,13 @@ $(IR_PCA): $(IR_TOKENS)
 		--inputs $(IR_TOKENS) \
 		--out $(IR_PCA)
 
-
 # -------- VISUALIZATION --------
 
 rgb_viz: $(RGB_PCA)
 	$(PYTHON) -m pca.batch_visualize \
 		--ckpt $(RGB_CKPT) \
 		--pca $(RGB_PCA) \
-		--root $(RGB_DATA_ROOT) \
+		--root $(RGB_TEST_DATA_ROOT) \
 		--out $(RGB_VIZ_OUT) \
 		--num $(NUM_VIZ)
 
@@ -68,11 +68,10 @@ ir_viz: $(IR_PCA)
 	$(PYTHON) -m pca.batch_visualize \
 		--ckpt $(IR_CKPT) \
 		--pca $(IR_PCA) \
-		--root $(IR_DATA_ROOT) \
+		--root $(IR_TEST_DATA_ROOT) \
 		--out $(IR_VIZ_OUT) \
 		--num $(NUM_VIZ) \
 		--use_ir
-
 
 # -------- PIPELINES --------
 
