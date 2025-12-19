@@ -1,9 +1,8 @@
-from sklearn.decomposition import PCA
+import argparse
 import torch
 import numpy as np
 from PIL import Image
 import joblib
-import torchvision.transforms as T
 import torch.nn.functional as F
 from LeJEPA import LeJEPA, LeJEPAConfig
 from eval.lejepa_eval import build_eval_transform
@@ -40,7 +39,6 @@ def colorize_image_patchwise_jepa(model, pca, img_tensor, device="cuda", normali
     return out
 
 if __name__ == "__main__":
-    import argparse
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--ckpt", required=True)

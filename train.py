@@ -5,8 +5,6 @@ import random
 from dataclasses import dataclass
 import argparse
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from LeJEPA import LeJEPA, MultiCropTransform
@@ -159,8 +157,11 @@ if __name__ == "__main__":
     
     if (args.use_ir):
         print("Using IR")
+        
+    ### train
     train_lejepa(data_root, cfg, use_ir=args.use_ir)
     
+    ### eval
     if args.run_eval:
         make_target = "ir_all" if args.use_ir else "rgb_all"
 

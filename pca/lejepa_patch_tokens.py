@@ -2,8 +2,7 @@ import os
 import torch
 import numpy as np
 import torch.nn.functional as F
-from torchvision import transforms
-from LeJEPA import LeJEPA, LeJEPAConfig, MultiCropTransform, block_mask
+from LeJEPA import LeJEPA, LeJEPAConfig
 import argparse
 from eval.lejepa_eval import build_eval_transform
 from PIL import Image
