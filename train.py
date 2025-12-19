@@ -1,3 +1,5 @@
+import subprocess
+import sys
 import math
 import random
 from dataclasses import dataclass
@@ -149,6 +151,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--use_ir", action="store_true", help="Use IR mode (1-channel instead of 3).")
     parser.add_argument("--data_root", default="/home/megrad/Documents/Github/lejepa/ds/train/ir_images")
+    parser.add_argument("--run_eval", action="store_true")
     args = parser.parse_args()
     
     cfg = LeJEPAConfig()
@@ -157,4 +160,19 @@ if __name__ == "__main__":
     if (args.use_ir):
         print("Using IR")
     train_lejepa(data_root, cfg, use_ir=args.use_ir)
+    
+    if args.run_eval:
+        make_target = "ir_all" if args.use_ir else "rgb_all"
+
+        print(f"\nRunning eval pipeline: make {make_target}\n")
+
+        result = subprocess.run(
+            ["make", make_target],
+            cwd="/home/megrad/Documents/Github/lejepa",
+            stdout=sys.stdout,
+            stderr=sys.stderr,
+        )
+
+        if result.returncode != 0:
+            raise RuntimeError(f"`make {make_target}` failed")
     
