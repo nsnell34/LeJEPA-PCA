@@ -22,28 +22,30 @@ def collect_images(root, limit):
 def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    cfg = LeJEPAConfig(image_size=224, batch_size=128)
-    model = LeJEPA(cfg, use_ir=args.use_ir).to(device)
-
     ckpt = torch.load(args.ckpt, map_location=device)
+    cfg = LeJEPAConfig(**ckpt["cfg"])
+
+    model = LeJEPA(cfg, use_ir=args.use_ir).to(device)
     model.load_state_dict(ckpt["model_state"])
     model.eval()
 
     pca = joblib.load(args.pca)
     transform = build_transform(cfg, use_ir=args.use_ir)
+    
     viz_pca_dir = os.path.join(args.out, "pca")
     viz_orig_dir = os.path.join(args.out, "original")
-
     os.makedirs(viz_pca_dir, exist_ok=True)
     os.makedirs(viz_orig_dir, exist_ok=True)
 
     img_paths = collect_images(args.root, args.num)
+    print(f"[batch_visualize] Found {len(img_paths)} images in {args.root}")
+
     
     for p in img_paths:
         fname = os.path.basename(p)
         raw_img = Image.open(p).convert("L" if args.use_ir else "RGB")
 
-        x = transform(raw_img).unsqueeze(0)
+        x = transform(raw_img).unsqueeze(0).to(device)
 
         vis = colorize_image_patchwise_jepa(
             model=model,

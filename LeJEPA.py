@@ -38,12 +38,7 @@ class ResNetBackbone(nn.Module):
             → layer1 → layer2 → layer3 → layer4
             → output: (B, out_dim, H/32, W/32)
 
-    Supports RGB (3-channel) or IR/grayscale (1-channel) input by replacing
-    the first convolution layer.
-
-    ResNet variants:
-        - resnet18 → out_dim = 512
-        - resnet50 → out_dim = 2048
+    Supports RGB (3-channel) or IR/grayscale (1-channel) input.
     """
     def __init__(self, use_ir: bool, resnet_type="resnet18"):
         super().__init__()
@@ -84,25 +79,15 @@ class ResNetBackbone(nn.Module):
         self.avgpool = backbone.avgpool
         self.fc = nn.Identity()
 
-    def forward(self, x, return_layer="layer4"):
-    
-        x = self.conv1(x) 
+    def forward(self, x):
+        x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
 
         x = self.layer1(x)
-        if return_layer == "layer1":
-            return x
-
         x = self.layer2(x)
-        if return_layer == "layer2":
-            return x
-
         x = self.layer3(x)
-        if return_layer == "layer3":
-            return x
-
         x = self.layer4(x)
         return x
     
@@ -112,10 +97,8 @@ class SwiGLUBlock(nn.Module):
 
     Applies a gated linear transformation:
         in_dim → 2 * hidden_dim → hidden_dim → out_dim
-
-    The input is split into gate and value tensors; the gate is activated
-    with SiLU and multiplied elementwise with the value projection.
     """
+
     def __init__(self, in_dim, hidden_dim, out_dim):
         super().__init__()
         self.fc1 = nn.Linear(in_dim, 2 * hidden_dim)
@@ -123,17 +106,14 @@ class SwiGLUBlock(nn.Module):
 
     def forward(self, x):
         x = self.fc1(x)
-        x_gate, x_value = x.chunk(2, dim=-1)  
-        hidden = F.silu(x_gate) * x_value
-        out = self.fc2(hidden)
-        return out
+        gate, value = x.chunk(2, dim=-1)
+        return self.fc2(F.silu(gate) * value)
 
 class ProjectorMLP(nn.Module):
     """
     Projection head mapping backbone features into the latent space.
 
-    Uses a SwiGLU block followed by LayerNorm to transform per-sample
-    features from backbone dimensionality into the JEPA latent dimension.
+    Uses a SwiGLU block followed by LayerNorm 
     """
     def __init__(self, in_dim, hidden_dim, out_dim):
         super().__init__()
@@ -141,111 +121,55 @@ class ProjectorMLP(nn.Module):
         self.norm = nn.LayerNorm(out_dim)
 
     def forward(self, x):
-        x = self.core(x)
-        return x
-
-
-class PredictorMLP(nn.Module):
-    """
-    Predictor network operating in latent space.
-
-    Maps latent representations to predicted latent targets using a
-    SwiGLU block. Input and output dimensionality are the same.
-    """
-    def __init__(self, dim, hidden_dim):
-        super().__init__()
-        self.core = SwiGLUBlock(dim, hidden_dim, dim)
-
-    def forward(self, x):
-        x = self.core(x)
-        return x
+        return self.norm(self.core(x))
+    
 
 class LeJEPA(nn.Module):
     """
-    Latent Joint-Embedding Predictive Architecture (LeJEPA).
-
-    Consists of:
-    - A context encoder and projector (trainable)
-    - A target encoder and projector (EMA-updated, frozen)
-    - A predictor operating in latent space
-
-    The model predicts target latent representations from context views
-    and optimizes a regression loss between normalized latent embeddings.
+    SIGReg-based Latent Joint-Embedding Predictive Architecture (LeJEPA).
     """
     def __init__(self, cfg: LeJEPAConfig, use_ir: bool):
         super().__init__()
         self.cfg = cfg
 
-        ### TODO -- use one backbone for both 
-        self.context_encoder = ResNetBackbone(use_ir=use_ir)
-        self.target_encoder = ResNetBackbone(use_ir=use_ir)
+        self.encoder = ResNetBackbone(use_ir=use_ir)
 
-        feat_dim = self.context_encoder.out_dim
-
-        self.context_projector = ProjectorMLP(
-            in_dim=feat_dim,
-            hidden_dim=cfg.projector_hidden_dim,
-            out_dim=cfg.latent_dim,
-        )
-        self.target_projector = ProjectorMLP(
-            in_dim=feat_dim,
+        self.projector = ProjectorMLP(
+            in_dim=self.encoder.out_dim,
             hidden_dim=cfg.projector_hidden_dim,
             out_dim=cfg.latent_dim,
         )
 
-        self.predictor = PredictorMLP(
-            dim=cfg.latent_dim,
-            hidden_dim=cfg.predictor_hidden_dim,
-        )
-        
-        self._init_target()
-        for p in self.target_encoder.parameters():
-            p.requires_grad = False
-        for p in self.target_projector.parameters():
-            p.requires_grad = False
-
-    @torch.no_grad()
-    def _init_target(self):
-        for p, q in zip(self.context_encoder.parameters(),
-                        self.target_encoder.parameters()):
-            q.data.copy_(p.data)
-
-        for p, q in zip(self.context_projector.parameters(),
-                        self.target_projector.parameters()):
-            q.data.copy_(p.data)
-
-    @torch.no_grad()
-    def update_target(self, m: float):
-        for p, q in zip(self.context_encoder.parameters(),
-                        self.target_encoder.parameters()):
-            q.data.mul_(m).add_(p.data, alpha=(1.0 - m))
-
-        for p, q in zip(self.context_projector.parameters(),
-                        self.target_projector.parameters()):
-            q.data.mul_(m).add_(p.data, alpha=(1.0 - m))
-            
-    @torch.no_grad()
-    def forward_embed(self, x):
-        feat = self.context_encoder(x)
-        feat = feat.mean(dim=(2,3))
-        z = self.context_projector(feat)
+    def encode(self, x):
+        feat = self.encoder(x)          # [batch_size, feat_dim, H, W]
+        feat = feat.mean(dim=(2,3))     # global avg pool
+        z = self.projector(feat)
         return F.normalize(z, dim=-1)
 
-    def forward_jepa(self, global_ctx, global_tgt):
-        ## normalize scalar to have result shape (B, C) instead of (B, C, H, W)  
-        ## essentially implements global average pooling
-        ctx_feat = self.context_encoder(global_ctx)   
-        ctx_feat = ctx_feat.mean(dim=(2, 3)) 
-        z_c = self.context_projector(ctx_feat)        
-        z_pred = self.predictor(z_c)                  
+def forward_jepa(model, x1, x2, lambda_sigreg=1.0):
+    """
+    Computes the JEPA + SIGReg training loss for two global views.
+    """
+    z1 = model.encode(x1)
+    z2 = model.encode(x2)
 
-        with torch.no_grad():
-            tgt_feat = self.target_encoder(global_tgt)
-            tgt_feat = tgt_feat.mean(dim=(2, 3)) 
-            z_t = self.target_projector(tgt_feat)
+    # JEPA alignment loss
+    loss_jepa = F.mse_loss(z1, z2)
 
-        z_pred = F.normalize(z_pred, dim=-1)
-        z_t = F.normalize(z_t, dim=-1)
+    # SIGReg on both views
+    loss_sigreg = sigreg_loss(z1) + sigreg_loss(z2)
 
-        loss = F.mse_loss(z_pred, z_t)
-        return loss
+    return loss_jepa + lambda_sigreg * loss_sigreg
+
+def sigreg_loss(z, eps=1e-4):
+    B, D = z.shape
+
+    std = torch.sqrt(z.var(dim=0) + eps)
+    var_loss = torch.mean(F.relu(1.0 - std))
+
+    z = z - z.mean(dim=0)
+    cov = (z.T @ z) / (B - 1)
+    off_diag = cov - torch.diag(torch.diag(cov))
+    cov_loss = (off_diag ** 2).sum() / D
+
+    return var_loss + cov_loss
