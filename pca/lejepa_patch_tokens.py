@@ -4,9 +4,9 @@ import numpy as np
 import torch.nn.functional as F
 from LeJEPA import LeJEPA, LeJEPAConfig
 import argparse
-from eval.lejepa_eval import build_eval_transform
 from PIL import Image
 import argparse
+from torchvision import transforms
 
 @torch.no_grad()
 def dump_jepa_patch_tokens(model, cfg, device, root, use_ir, out_path, max_images=None):
@@ -29,7 +29,7 @@ def dump_jepa_patch_tokens(model, cfg, device, root, use_ir, out_path, max_image
 
             x = transform(img).unsqueeze(0).to(device)
 
-            fmap = model.context_encoder(x)
+            fmap = model.encoder(x)
             _, C, Hf, Wf = fmap.shape
 
             # ------------------------------------------------------------------
@@ -49,7 +49,7 @@ def dump_jepa_patch_tokens(model, cfg, device, root, use_ir, out_path, max_image
                 .reshape(-1, C)
             )
 
-            tokens = model.context_projector(tokens)
+            tokens = model.projector(tokens)
 
             tokens = F.normalize(tokens, dim=-1)
 
@@ -63,6 +63,28 @@ def dump_jepa_patch_tokens(model, cfg, device, root, use_ir, out_path, max_image
     np.save(out_path, tokens_all)
 
     print(f"Saved JEPA tokens: {tokens_all.shape} → {out_path}")
+    
+def build_eval_transform(cfg: LeJEPAConfig, use_ir: bool):
+    """
+    Deterministic transform for embedding / token extraction.
+    NOT for multi-view consistency evaluation.
+    """
+    if use_ir:
+        return transforms.Compose([
+            transforms.Resize((cfg.image_size, cfg.image_size)),
+            transforms.Grayscale(num_output_channels=1),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.4226], std=[0.1795]),
+        ])
+    else:
+        return transforms.Compose([
+            transforms.Resize((cfg.image_size, cfg.image_size)),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.4807, 0.4986, 0.4881],
+                std=[0.2233, 0.2059, 0.1738],
+            ),
+        ])
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
