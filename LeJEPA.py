@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import models
 from transforms import Transforms
-from train import LeJEPAConfig
+from config import LeJEPAConfig
 
 class MultiCropTransform:
 

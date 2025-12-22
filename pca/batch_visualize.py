@@ -4,7 +4,7 @@ import joblib
 from PIL import Image
 from LeJEPA import LeJEPA, LeJEPAConfig
 from pca.PCA import colorize_image_patchwise_jepa
-from torchvision import transforms
+from pca.transforms import build_transform
 
 def collect_images(root, limit):
     exts = (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff")
@@ -30,7 +30,7 @@ def main(args):
     model.eval()
 
     pca = joblib.load(args.pca)
-    transform = build_vis_transform(cfg, use_ir=args.use_ir)
+    transform = build_transform(cfg, use_ir=args.use_ir)
     viz_pca_dir = os.path.join(args.out, "pca")
     viz_orig_dir = os.path.join(args.out, "original")
 
@@ -39,12 +39,14 @@ def main(args):
 
     img_paths = collect_images(args.root, args.num)
 
+
+    ### TODO -- analyze rgb outputs (augmentations)
+    
     for p in img_paths:
         fname = os.path.basename(p)
-        raw_img = Image.open(p).convert("RGB" if args.use_ir else "L")
+        raw_img = Image.open(p).convert("L" if args.use_ir else "RGB")
 
-        model_img = raw_img.convert("L") if args.use_ir else raw_img
-        x = transform(model_img).unsqueeze(0)
+        x = transform(raw_img).unsqueeze(0)
 
         vis = colorize_image_patchwise_jepa(
             model=model,
@@ -55,25 +57,6 @@ def main(args):
 
         raw_img.save(os.path.join(viz_orig_dir, fname))
         vis.save(os.path.join(viz_pca_dir, fname))
-        
-def build_vis_transform(cfg, use_ir):
-    if use_ir:
-        return transforms.Compose([
-            transforms.Resize((cfg.image_size, cfg.image_size)),
-            transforms.Grayscale(num_output_channels=1),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.4226], std=[0.1795]),
-        ])
-    else:
-        return transforms.Compose([
-            transforms.Resize((cfg.image_size, cfg.image_size)),
-            transforms.Lambda(lambda img: img.convert("RGB")),
-            transforms.ToTensor(),
-            transforms.Normalize(
-                mean=[0.4807, 0.4986, 0.4881],
-                std=[0.2233, 0.2059, 0.1738],
-            ),
-        ])    
 
 if __name__ == "__main__":
     import argparse

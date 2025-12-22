@@ -64,7 +64,6 @@ def dump_jepa_patch_tokens(model, cfg, device, root, use_ir, out_path, max_image
 
     print(f"Saved JEPA tokens: {tokens_all.shape} → {out_path}")
     
-    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ckpt", required=True)

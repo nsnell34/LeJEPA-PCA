@@ -3,7 +3,9 @@ import os
 from PIL import Image
 import torch.nn.functional as F
 from torchvision import transforms
-from LeJEPA import LeJEPA, LeJEPAConfig, MultiCropTransform, block_mask
+from LeJEPA import LeJEPA, MultiCropTransform
+from config import LeJEPAConfig
+from block_mask import block_mask
 import argparse
 
 def load_model(ckpt_path: str, device: str = None, use_ir: bool = False):

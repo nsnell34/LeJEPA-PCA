@@ -1,31 +1,13 @@
 import subprocess
 import sys
 import math
-import random
-from dataclasses import dataclass
 import argparse
 import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets
 from LeJEPA import LeJEPA, MultiCropTransform
-
-@dataclass
-class LeJEPAConfig:
-    image_size: int = 224
-    batch_size: int = 128
-    num_workers: int = 8
-    epochs: int = 20
-    base_lr: float = 1e-3
-    weight_decay: float = 1e-4
-    ema_momentum: float = 0.996
-    latent_dim: int = 64  
-    projector_hidden_dim: int = 256
-    predictor_hidden_dim: int = 128
-    global_crop_scale: tuple = (0.4, 1.0)
-    local_crop_scale: tuple = (0.05, 0.4)
-    num_local_crops: int = 4 
-    mask_ratio: float = 0.5
-    device: str = "cuda" if torch.cuda.is_available() else "cpu"
+from config import LeJEPAConfig
+from block_mask import block_mask
 
 def build_dataloader(cfg: LeJEPAConfig, data_root: str, use_ir: bool):
     transform = MultiCropTransform(cfg, use_ir=use_ir, dataset_path=data_root)
@@ -39,34 +21,6 @@ def build_dataloader(cfg: LeJEPAConfig, data_root: str, use_ir: bool):
         drop_last=True,
     )
     return loader
-
-def block_mask(x, mask_ratio=0.5, min_num_blocks=1, max_num_blocks=4):
-    """
-    Applies random block-wise masking to spatial feature maps.
-    Forces model to infer missing structure from global context
-    """
-    B, C, H, W = x.shape
-    device = x.device
-    mask = torch.ones((B, 1, H, W), device=device)
-
-    for b in range(B):
-        num_blocks = random.randint(min_num_blocks, max_num_blocks)
-        for _ in range(num_blocks):
-            block_area = mask_ratio * H * W / num_blocks
-
-            aspect = random.uniform(0.5, 2.0)
-            h = int(round(math.sqrt(block_area / aspect)))
-            w = int(round(math.sqrt(block_area * aspect)))
-
-            h = max(1, min(h, H))
-            w = max(1, min(w, W))
-
-            top = random.randint(0, H - h)
-            left = random.randint(0, W - w)
-
-            mask[b, :, top:top+h, left:left+w] = 0.0
-
-    return x * mask
 
 def cosine_lr(step, max_steps, base_lr, final_lr_ratio=0.0001):
     if step >= max_steps:

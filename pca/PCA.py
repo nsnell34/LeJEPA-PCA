@@ -5,7 +5,7 @@ from PIL import Image
 import joblib
 import torch.nn.functional as F
 from LeJEPA import LeJEPA, LeJEPAConfig
-from eval.lejepa_eval import build_eval_transform
+from pca.transforms import build_transform
 
 @torch.no_grad()
 def colorize_image_patchwise_jepa(model, pca, img_tensor, device="cuda", normalize=True):
@@ -59,7 +59,7 @@ if __name__ == "__main__":
 
     pca = joblib.load(args.pca)
 
-    transform = build_eval_transform(cfg, use_ir=args.use_ir)
+    transform = build_transform(cfg, use_ir=args.use_ir)
 
     img = Image.open(args.img).convert("L" if args.use_ir else "RGB")
     img_tensor = transform(img).unsqueeze(0)
