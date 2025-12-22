@@ -98,6 +98,27 @@ def train_lejepa(data_root: str, cfg: LeJEPAConfig, use_ir: bool):
             },
             f"lejepa_{save_ext}.pth",
         )
+        
+        
+    """ integrate when ready 
+    def sigreg_loss(z, eps=1e-4):
+    # z: (B, D) normalized embeddings
+
+    B, D = z.shape
+
+    # Variance loss
+    std = torch.sqrt(z.var(dim=0) + eps)
+    var_loss = torch.mean(F.relu(1.0 - std))
+
+    # Covariance loss
+    z = z - z.mean(dim=0)
+    cov = (z.T @ z) / (B - 1)
+    off_diag = cov - torch.diag(torch.diag(cov))
+    cov_loss = (off_diag ** 2).sum() / D
+
+    return var_loss + cov_loss
+
+    """
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

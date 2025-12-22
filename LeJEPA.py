@@ -176,7 +176,7 @@ class LeJEPA(nn.Module):
         super().__init__()
         self.cfg = cfg
 
-        ### use one backbone for both 
+        ### TODO -- use one backbone for both 
         self.context_encoder = ResNetBackbone(use_ir=use_ir)
         self.target_encoder = ResNetBackbone(use_ir=use_ir)
 

@@ -38,9 +38,6 @@ def main(args):
     os.makedirs(viz_orig_dir, exist_ok=True)
 
     img_paths = collect_images(args.root, args.num)
-
-
-    ### TODO -- analyze rgb outputs (augmentations)
     
     for p in img_paths:
         fname = os.path.basename(p)
