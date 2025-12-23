@@ -1,117 +1,75 @@
 # LeJEPA-PCA
-Pytorch LeJEPA implementation utilizing PCA for data visualization 
 
-## Project Overview
+**PyTorch implementation of LeJEPA with PCA-based representation analysis and visualization.**
 
-- What LeJEPA is (Latent JEPA / I-JEPA–style self-supervised model)
-- High-level goal of the repo
-- Learning patch-level representations
-- Supporting RGB and IR modalities
-- Emphasis on representation analysis & visualization (not just loss curves)
-- Keep this to ~3–5 sentences.
+This repository focuses on learning **patch-level latent representations** using a JEPA-style self-supervised objective, with first-class support for **representation inspection and visualization**. It supports both **RGB and Infrared (IR)** modalities and emphasizes understanding *what the model learns*, not just how fast the loss drops. Visualization is treated as a core component rather than a post-hoc add-on.
 
-## Key Ideas / Architecture
+---
 
-Brief description of:
+## Overview
 
-- Context encoder + target encoder (EMA)
-- Predictor head
-- Patch-level feature extraction (ResNet backbone)
-- Why JEPA (no negatives, no reconstruction)
-- How collapse is avoided (EMA + predictor asymmetry)
-- No equations — conceptual only.
+LeJEPA-PCA implements a Latent JEPA / I-JEPA–style self-supervised model for learning patch-level representations from images. The goal is to train modality-agnostic encoders while enabling deep inspection of learned latent structure through PCA-based visualization. Both RGB and IR pipelines are supported, with modality-specific representations. The project prioritizes representation analysis over downstream task accuracy.
 
-## Repository Structure
+---
 
-Explain where to look:
+## Architecture
 
-lejepa/
-├── train.py            # training loop
-├── eval/               # evaluation + metrics
-├── pca/                # token dumping, PCA fitting, visualization
-├── transforms/         # data augmentations
-├── tokens/             # saved patch embeddings (.npy)
-├── joblibs/            # fitted PCA objects (.joblib)
-├── viz/                # visualization outputs
-├── ckpts/              # model checkpoints
+- **Single Encoder + Projector (SigReg)**  
+  The model uses a single encoder with a projection head, trained using a signal-regularization (SigReg) objective rather than a dual encoder or EMA teacher.
+
+- **SigReg Objective**  
+  Regularizes the latent space directly to encourage informative, non-degenerate representations without requiring a target network or stop-gradient tricks.
+
+- **Patch-Level Feature Learning**  
+  Representations are learned at the patch level using a ResNet backbone, enabling spatially localized latent analysis.
 
 ## Installation
 
-Minimal setup steps:
+Minimal setup:
 
-Python version
-Install dependencies
-(Optional) CUDA note
+- **Python:** 3.10+
+- **Dependencies:** PyTorch, NumPy, scikit-learn, joblib
+- **CUDA:** Recommended for training but not required for analysis
 
-`pip install -r requirements.txt`
-
-## Training
-
-How to start training (RGB vs IR)
-
-Key flags
-Where checkpoints are saved
-Example:
-
+```bash
+pip install -r requirements.txt
+Training
+Training is fully self-supervised — no labels are required.
+RGB Training
 python train.py --data_root ds/train/rgb_images
+Infrared (IR) Training
 python train.py --use_ir --data_root ds/train/ir_images
-
-Mention:
-Training is self-supervised
-No labels required
-
-## Evaluation Pipeline
-
-Describe what evaluation means in this repo:
+Notes
+Uses a single encoder + projector trained with SigReg
+Supports RGB and IR via a shared architecture
+Model checkpoints are saved to ckpts/
+Evaluation Pipeline
+Evaluation focuses on latent behavior, not downstream task accuracy.
+Metrics include:
 Latent prediction loss
-Cosine similarity / squared distance
-Evaluation does not involve classification accuracy
-
-Example:
-
+Cosine similarity between latent embeddings
+Squared distance in representation space
+Note: No classification accuracy or supervised metrics are used.
 make rgb_eval
 make ir_eval
-
-## Representation Analysis & Visualization (Important Section)
-
-This is a key differentiator of your project — give it a dedicated section.
-
-Explain:
-
-Patch token extraction
-PCA fitted once on tokens
-PCA reused for visualization
-Visualizations show latent semantics, not pixel color
-
-Example:
-
+Representation Analysis & Visualization
+This is a core focus of the repository.
+What Happens
+Patch-level tokens are extracted from the trained encoder
+PCA is fit once on the saved patch embeddings
+The same PCA is reused for all visualizations
+Visualizations reflect latent semantics, not pixel colors
 make rgb_viz NUM_VIZ=10
 make ir_viz NUM_VIZ=10
-
-Explain briefly:
-Why outputs are blocky
-Why PCA is modality-specific (RGB vs IR)
-
-## End-to-End Workflow
-
-One concise, high-level flow:
-
-Train → Eval → Dump Tokens → Fit PCA → Visualize
-
-
-Optionally mention:
-
+Interpretation Notes
+Blocky outputs arise from patch-level representations rather than pixel-level predictions
+Modality-specific PCA is used because RGB and IR occupy different latent distributions
+Colors encode directions in latent space, not image intensity or RGB values
+End-to-End Workflow
+Train → Evaluate → Dump Tokens → Fit PCA → Visualize
+Optional one-command pipelines:
 make rgb_all
 make ir_all
-
-## Notes & Design Decisions
-
-Short bullets, e.g.:
-PCA is fit offline (not during eval)
-RGB and IR use separate PCAs
-Visualization uses model input transforms, not raw images
-No supervised fine-tuning included
-This prevents confusion.
 
 ## Citations
 
