@@ -52,13 +52,14 @@ Evaluation can be triggered via:
 
 ## Representation Analysis & Visualization
 For PCA visualization only, use 
-`make rgb_viz NUM_VIZ=<int>`
-`make ir_viz NUM_VIZ=<int>`
+- `make rgb_viz NUM_VIZ=<int>`
+- `make ir_viz NUM_VIZ=<int>`
 
 ## End-to-End Workflow
 Train → Evaluate → Dump Tokens → Fit PCA → Visualize
 Optional one-command pipelines:
-- `make rgb_all`- `make ir_all`
+- `make rgb_all`
+- `make ir_all`
 
 ## Citations
 ```
