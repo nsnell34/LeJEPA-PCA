@@ -2,7 +2,7 @@
 
 ## Overview
 
-LeJEPA-PCA is a self-supervised learning project that trains image models and visualizes output using PCA, supporting both RGB and infrared data.
+LeJEPA-PCA is a self-supervised learning project that trains image models and visualizes output using PCA.
 
 ---
 
@@ -12,7 +12,7 @@ LeJEPA-PCA is a self-supervised learning project that trains image models and vi
   The model uses a single encoder with a projection head, trained using a signal-regularization (SigReg) objective.
 
 - **SigReg Objective**  
-  Regularizes the latent space directly to encourage informative, non-degenerate representations.
+  Regularizes the latent space directly to encourage informative representations.
 
 - **Patch-Level Feature Learning**  
   Representations are learned at the patch level using a ResNet backbone, enabling spatially localized latent analysis.
