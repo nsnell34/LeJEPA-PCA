@@ -26,7 +26,6 @@ class Transforms:
         self.stats = Stats()
         self.stats.mean = self.mean.tolist()
         self.stats.std = self.std.tolist()
-        #print("STATS: ", self.stats)
         
         if use_ir:
             self.global_transform, self.local_transform  = self.ir_transform(self.stats, cfg)

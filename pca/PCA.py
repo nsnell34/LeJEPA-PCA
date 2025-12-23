@@ -8,7 +8,7 @@ from LeJEPA import LeJEPA, LeJEPAConfig
 from pca.transforms import build_transform
 
 @torch.no_grad()
-def colorize_image_patchwise_jepa(model, pca, img_tensor, device="cuda", normalize=True):
+def colorize_image_patchwise_jepa(model, pca, img_tensor, device="cuda"):
 
     model.eval()
     img_tensor = img_tensor.to(device)
