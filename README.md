@@ -2,7 +2,9 @@
 
 ## Overview
 
-LeJEPA-PCA is a self-supervised learning project that trains image models and visualizes output using PCA.
+LeJEPA is a self-supervised learning framework that trains models to predict abstract latent representations of future or missing data rather than raw pixels or tokens. LeJEPA uses principled regularization to prevent collapse and eliminate ad-hoc heuristics. 
+
+This project leverages LeJEPA framework, including a PCA visualization pipeline. 
 
 ---
 
