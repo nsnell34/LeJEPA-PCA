@@ -57,6 +57,11 @@ def evaluate_dataset(model, cfg, device, root, use_ir):
 
 
 if __name__ == "__main__":
+    
+    ### if running directly in command line:
+    #   run as a module for paths to work 
+    #   i.e python3 -m eval.lejepa_eval --val_root <root> etc... 
+    
     parser = argparse.ArgumentParser()
     parser.add_argument("--use_ir", action="store_true")
     parser.add_argument("--val_root", required=True)
@@ -77,7 +82,7 @@ if __name__ == "__main__":
         use_ir=args.use_ir,
     )
 
-    print("\n==== SIGReg-JEPA Evaluation ====")
+    print("\n==== EVAL ====")
     print(f"Val root: {args.val_root}")
-    print(f"Avg cosine similarity (view consistency): {avg_cos:.6f}")
+    print(f"Avg cosine similarity: {avg_cos:.6f}")
     print("================================\n")

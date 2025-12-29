@@ -23,9 +23,11 @@ NUM_VIZ ?= 10
 # -------- EVAL --------
 rgb_eval:
 	$(PYTHON) -m eval.lejepa_eval --val_root $(RGB_DATA_ROOT)
+	$(PYTHON) -m eval.sample_stats --img_dir $(RGB_TEST_DATA_ROOT)
 
 ir_eval:
 	$(PYTHON) -m eval.lejepa_eval --val_root $(IR_DATA_ROOT) --use_ir
+	$(PYTHON) -m eval.sample_stats --img_dir $(IR_TEST_DATA_ROOT) --use_ir
 
 # -------- TOKENS --------
 
