@@ -40,7 +40,14 @@ if __name__ == "__main__":
     parser.add_argument("--use_ir", action="store_true")
     args = parser.parse_args()
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    ## mps for apple silicon
+    device = (
+        "cuda" if torch.cuda.is_available()
+        else "mps" if torch.backends.mps.is_available()
+        else "cpu"
+    )
+
+    print("Using device:", device)
 
     cfg = LeJEPAConfig(image_size=224, batch_size=128)
     model = LeJEPA(cfg, use_ir=args.use_ir).to(device)

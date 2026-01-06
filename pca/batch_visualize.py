@@ -20,7 +20,11 @@ def collect_images(root, limit):
 
 @torch.no_grad()
 def main(args):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = (
+        "cuda" if torch.cuda.is_available()
+        else "mps" if torch.backends.mps.is_available()
+        else "cpu"
+    )
 
     ckpt = torch.load(args.ckpt, map_location=device)
     cfg = LeJEPAConfig(**ckpt["cfg"])

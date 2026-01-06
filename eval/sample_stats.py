@@ -24,7 +24,11 @@ def sample_images(root):
 
 @torch.no_grad
 def emb_stats(image_paths, use_ir, ckpt):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = (
+        "cuda" if torch.cuda.is_available()
+        else "mps" if torch.backends.mps.is_available()
+        else "cpu"
+    )
 
     cfg = LeJEPAConfig(image_size=224, batch_size=128)
     model = LeJEPA(cfg, use_ir=use_ir).to(device)
