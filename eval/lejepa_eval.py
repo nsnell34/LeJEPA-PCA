@@ -55,7 +55,6 @@ def evaluate_dataset(model, cfg, device, root, use_ir):
 
     return total_cos / len(img_paths)
 
-
 if __name__ == "__main__":
     
     ### if running directly in command line:

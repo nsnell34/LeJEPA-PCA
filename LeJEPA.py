@@ -28,9 +28,6 @@ class ResNetBackbone(nn.Module):
     """
     ResNet-based convolutional backbone for feature extraction.
 
-    Wraps a torchvision ResNet (18 or 50) as a fully convolutional encoder,
-    removing the classification head and returning a spatial feature map.
-
     Forward order:
         (B, C, H, W)
             → conv1 (stride 2)
@@ -139,33 +136,36 @@ class LeJEPA(nn.Module):
             hidden_dim=cfg.projector_hidden_dim,
             out_dim=cfg.latent_dim,
         )
+        
+        self.predictor = ProjectorMLP(
+            in_dim=cfg.latent_dim,
+            hidden_dim=cfg.predictor_hidden_dim,
+            out_dim=cfg.latent_dim,
+        )
 
     def encode(self, x):
         feat = self.encoder(x)          # [batch_size, feat_dim, H, W]
         feat = feat.mean(dim=(2,3))     # global avg pool
         z = self.projector(feat)
-        return F.normalize(z, dim=-1)
+        return z
 
-def forward_jepa(model, x1, x2, lambda_sigreg=1.0):
-    """
-    Computes the JEPA + SIGReg training loss for two global views.
-    """
-    z1 = model.encode(x1)
-    z2 = model.encode(x2)
+def forward_jepa(model, x1, x2, lambda_sigreg=10.0):
+    z_ctx = model.encode(x1)
+    p_ctx = model.predictor(z_ctx)
 
-    # JEPA alignment loss
-    loss_jepa = F.mse_loss(z1, z2)
+    with torch.no_grad():
+        z_tgt = model.encode(x2)
 
-    # SIGReg on both views
-    loss_sigreg = sigreg_loss(z1) + sigreg_loss(z2)
+    loss_jepa = F.mse_loss(p_ctx, z_tgt)
+    loss_sigreg = sigreg_loss(z_ctx)
 
     return loss_jepa + lambda_sigreg * loss_sigreg
 
 def sigreg_loss(z, eps=1e-4):
     B, D = z.shape
 
-    std = torch.sqrt(z.var(dim=0) + eps)
-    var_loss = torch.mean(F.relu(1.0 - std))
+    var = z.var(dim=0)
+    var_loss = torch.mean((var - 1.0) ** 2)
 
     z = z - z.mean(dim=0)
     cov = (z.T @ z) / (B - 1)

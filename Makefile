@@ -9,6 +9,9 @@ IR_DATA_ROOT=ds/val/ir_images
 RGB_TEST_DATA_ROOT=ds/test_images/rgb
 IR_TEST_DATA_ROOT=ds/test_images/ir
 
+RGB_VAL_DATA_ROOT=ds/val/rgb_images
+IR_VAL_DATA_ROOT=ds/val/ir_images
+
 RGB_TOKENS=tokens/tokens_rgb.npy
 IR_TOKENS=tokens/tokens_ir.npy
 
@@ -23,11 +26,11 @@ NUM_VIZ ?= 10
 # -------- EVAL --------
 rgb_eval:
 	$(PYTHON) -m eval.lejepa_eval --val_root $(RGB_DATA_ROOT)
-	$(PYTHON) -m eval.sample_stats --img_dir $(RGB_TEST_DATA_ROOT)
+	$(PYTHON) -m eval.sample_stats --img_dir $(RGB_VAL_DATA_ROOT)
 
 ir_eval:
 	$(PYTHON) -m eval.lejepa_eval --val_root $(IR_DATA_ROOT) --use_ir
-	$(PYTHON) -m eval.sample_stats --img_dir $(IR_TEST_DATA_ROOT) --use_ir
+	$(PYTHON) -m eval.sample_stats --img_dir $(IR_VAL_DATA_ROOT) --use_ir
 
 # -------- TOKENS --------
 

@@ -19,6 +19,13 @@ def build_dataloader(cfg: LeJEPAConfig, data_root: str, use_ir: bool):
         pin_memory=False,
         drop_last=True,
     )
+    
+import math
+
+def lambda_sigreg_schedule(epoch, max_epochs, lambda_start=3.0, lambda_end=0.1):
+    progress = epoch / max_epochs 
+    cosine = 0.5 * (1 + math.cos(math.pi * progress))
+    return lambda_end + (lambda_start - lambda_end) * cosine
 
 def train_lejepa(data_root: str, cfg: LeJEPAConfig, use_ir: bool):
     device = cfg.device
@@ -38,15 +45,17 @@ def train_lejepa(data_root: str, cfg: LeJEPAConfig, use_ir: bool):
     model.train()
     for epoch in range(cfg.epochs):
         running_loss = 0.0
+        lambda_sigreg = lambda_sigreg_schedule(epoch, cfg.epochs)
 
         print(f"\n=== Epoch [{epoch + 1}/{cfg.epochs}] ===")
+        print(f"Lambda val: {lambda_sigreg}")
 
         for batch_idx, (views, _) in enumerate(loader):
             global1, global2, _ = views
             global1 = global1.to(device)
             global2 = global2.to(device)
 
-            loss = forward_jepa(model, global1, global2)
+            loss = forward_jepa(model, global1, global2, lambda_sigreg=lambda_sigreg)
 
             optimizer.zero_grad()
             loss.backward()
@@ -55,16 +64,8 @@ def train_lejepa(data_root: str, cfg: LeJEPAConfig, use_ir: bool):
             step += 1
             running_loss += loss.item()
 
-            if batch_idx % 25 == 0:
-                avg_loss = running_loss / (batch_idx + 1)
-                print(
-                    f"Epoch {epoch + 1} | "
-                    f"Batch {batch_idx}/{len(loader)} | "
-                    f"Loss: {avg_loss:.6f}"
-                )
-
         epoch_loss = running_loss / len(loader)
-        print(f"Epoch {epoch + 1} finished | Avg Loss: {epoch_loss:.6f}")
+        print(f"Epoch {epoch + 1} | Avg Loss: {epoch_loss:.6f}")
 
         torch.save(
             {

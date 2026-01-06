@@ -14,7 +14,6 @@ def dump_jepa_patch_tokens(model, cfg, device, root, use_ir, out_path, max_image
     ### we use lejepa, not transformers, so we need patch tokens for pca fitting
     
     transform = build_eval_transform(cfg, use_ir)
-    exts = (".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff")
 
     tokens_all = []
     count = 0

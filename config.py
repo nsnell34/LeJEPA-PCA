@@ -5,7 +5,7 @@ class LeJEPAConfig:
     image_size: int = 224
     batch_size: int = 128
     num_workers: int = 8
-    epochs: int = 20
+    epochs: int = 50
     base_lr: float = 1e-3
     weight_decay: float = 1e-4
     ema_momentum: float = 0.996
